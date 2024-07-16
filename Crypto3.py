@@ -115,7 +115,7 @@ def main():
         wallet_info = wallet_info.rename(columns={'wallet_link': 'Wallet Link'})  # Переименование столбца
 
         # Отображение таблиц
-        col1, col2 = st.columns([1, 2])
+        col1, col2 = st.columns([2, 3])
 
         with col1:
             st.subheader("Сводная информация по валютам")
