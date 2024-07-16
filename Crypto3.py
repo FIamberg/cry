@@ -5,7 +5,7 @@ import datetime
 
 st.set_page_config(layout="wide")
 
-@st.cache_data
+
 def connect_to_database():
     conn = mysql.connector.connect(
         host="185.120.57.125",
