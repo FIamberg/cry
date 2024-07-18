@@ -2,9 +2,9 @@ import streamlit as st
 import pandas as pd
 import mysql.connector
 import datetime
+import plotly.graph_objects as go
 
 st.set_page_config(layout="wide")
-
 
 def connect_to_database():
     conn = mysql.connector.connect(
@@ -48,6 +48,62 @@ def fetch_data(date_from=None, date_to=None):
 
 def make_wallet_address_link(wallet_address):
     return f"https://www.alphatrace.xyz/wallet/{wallet_address}"
+
+def create_wallet_chart(df):
+    fig = go.Figure()
+    
+    # Группируем данные по дате и валюте
+    df_grouped = df.groupby(['datetime', 'currency_name', 'wallet_type'])['dollar_value'].sum().reset_index()
+    
+    # Получаем уникальные валюты
+    currencies = df_grouped['currency_name'].unique()
+    
+    # Задаем фиксированную ширину столбца в миллисекундах (примерно 50 пикселей)
+    bar_width = 10 * 60 * 60 * 1000 / 2  # половина дня в миллисекундах
+    
+    for currency in currencies:
+        currency_data = df_grouped[df_grouped['currency_name'] == currency]
+        
+        buy_data = currency_data[currency_data['wallet_type'] == 'кошелек покупки']
+        sell_data = currency_data[currency_data['wallet_type'] == 'кошелек продажи']
+        
+        fig.add_trace(go.Bar(
+            x=buy_data['datetime'],
+            y=buy_data['dollar_value'],
+            name=f'Покупка ({currency})',
+            marker_color='rgb(132, 214, 69)',
+            hovertemplate='Дата: %{x}<br>Объем покупки: $%{y:.2f}<extra></extra>',
+            width=bar_width
+        ))
+        
+        fig.add_trace(go.Bar(
+            x=sell_data['datetime'],
+            y=sell_data['dollar_value'],
+            name=f'Продажа ({currency})',
+            marker_color='rgb(214, 69, 69)',
+            hovertemplate='Дата: %{x}<br>Объем продажи: $%{y:.2f}<extra></extra>',
+            width=bar_width
+        ))
+    
+    fig.update_layout(
+        title='Объемы покупок и продаж по валютам',
+        xaxis_title='Дата',
+        yaxis_title='Объем (USD)',
+        barmode='group',
+        hovermode='closest',
+        width=1000,
+        height=600
+    )
+    
+    # Устанавливаем диапазон дат на оси X
+    fig.update_xaxes(
+        range=[df['datetime'].min() - pd.Timedelta(days=1), 
+               df['datetime'].max() + pd.Timedelta(days=1)]
+    )
+    
+    return fig
+    
+
 
 def main():
     st.title('Wallets')
@@ -111,7 +167,6 @@ def main():
 
         # Добавляем столбец со ссылкой
         wallet_info['wallet_link'] = wallet_info['wallet_address'].apply(make_wallet_address_link)
-        #wallet_info = wallet_info[['wallet_address', 'wallet_link', 'buy_volume', 'sell_volume']]  # Перестановка столбцов
         wallet_info = wallet_info.rename(columns={'wallet_link': 'Wallet Link'})  # Переименование столбца
 
         # Отображение таблиц
@@ -129,7 +184,6 @@ def main():
                     "Wallet Link": st.column_config.LinkColumn(
                         label="Wallet Address",
                         display_text = "Link",
-                        #url_column="Wallet Link",
                         help="Click to open wallet"
                     ),
                     "buy_volume": "Buy Volume",
@@ -143,6 +197,11 @@ def main():
         with col2:
             st.subheader("Детальная информация")
             st.dataframe(detailed_info, use_container_width=True, height=982)
+
+        # Создание и отображение графика
+        st.subheader("График объемов покупок и продаж")
+        chart = create_wallet_chart(df)
+        st.plotly_chart(chart, use_container_width=True)
 
     else:
         st.error("Пожалуйста, выберите диапазон дат.")
