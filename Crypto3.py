@@ -98,7 +98,7 @@ def create_wallet_chart(df):
         barmode='group',
         hovermode='closest',
         width=1000,
-        height=600
+        height=450
     )
     
     # Устанавливаем диапазон дат на оси X
@@ -202,12 +202,12 @@ def main():
 
         with col2:
             st.subheader("Детальная информация")
-            st.dataframe(detailed_info, use_container_width=True, height=982)
+            st.dataframe(detailed_info, use_container_width=True, height=500)
 
-        # Создание и отображение графика
-        st.subheader("График объемов покупок и продаж")
-        chart = create_wallet_chart(df)
-        st.plotly_chart(chart, use_container_width=True)
+            # Создание и отображение графика
+            st.subheader("График объемов покупок и продаж")
+            chart = create_wallet_chart(df)
+            st.plotly_chart(chart, use_container_width=True)
 
     else:
         st.error("Пожалуйста, выберите диапазон дат.")
