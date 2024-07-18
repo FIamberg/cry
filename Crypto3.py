@@ -61,6 +61,10 @@ def create_wallet_chart(df):
     # Задаем фиксированную ширину столбца в миллисекундах (примерно 50 пикселей)
     bar_width = 10 * 60 * 60 * 1000 / 2  # половина дня в миллисекундах
     
+    # Задаем конкретные цвета
+    buy_color = '#4CAF50'  # зеленый
+    sell_color = '#F44336'  # красный
+    
     for currency in currencies:
         currency_data = df_grouped[df_grouped['currency_name'] == currency]
         
@@ -72,7 +76,8 @@ def create_wallet_chart(df):
             y=buy_data['dollar_value'],
             name=f'Покупка ({currency})',
             marker_color='rgb(132, 214, 69)',
-            hovertemplate='Дата: %{x}<br>Объем покупки: $%{y:.2f}<extra></extra>',
+            hovertemplate='Валюта: %{text}<br>Дата: %{x}<br>Объем покупки: $%{y:.2f}<extra></extra>',
+            text=[currency] * len(buy_data),  # Добавляем название валюты
             width=bar_width
         ))
         
@@ -81,7 +86,8 @@ def create_wallet_chart(df):
             y=sell_data['dollar_value'],
             name=f'Продажа ({currency})',
             marker_color='rgb(214, 69, 69)',
-            hovertemplate='Дата: %{x}<br>Объем продажи: $%{y:.2f}<extra></extra>',
+            hovertemplate='Валюта: %{text}<br>Дата: %{x}<br>Объем продажи: $%{y:.2f}<extra></extra>',
+            text=[currency] * len(sell_data),  # Добавляем название валюты
             width=bar_width
         ))
     
