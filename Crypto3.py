@@ -238,7 +238,7 @@ def main():
                 filtered_detailed_info = detailed_info[detailed_info['currency_name'].isin(selected_currencies)]
             else:
                 filtered_detailed_info = detailed_info
-            st.dataframe(filtered_detailed_info, use_container_width=True, height=500)
+            st.dataframe(filtered_detailed_info, use_container_width=True, height=400)
 
             st.subheader("График объемов покупок и продаж")
             if selected_currencies:
