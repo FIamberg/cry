@@ -233,12 +233,7 @@ def main():
             )
 
         with col2:
-            st.subheader("Детальная информация")
-            if selected_currencies:
-                filtered_detailed_info = detailed_info[detailed_info['currency_name'].isin(selected_currencies)]
-            else:
-                filtered_detailed_info = detailed_info
-            st.dataframe(filtered_detailed_info, use_container_width=True, height=400)
+
 
             st.subheader("График объемов покупок и продаж")
             if selected_currencies:
@@ -247,6 +242,14 @@ def main():
                 filtered_df = df
             chart = create_wallet_chart(filtered_df)
             st.plotly_chart(chart, use_container_width=True)
+
+            
+            st.subheader("Детальная информация")
+            if selected_currencies:
+                filtered_detailed_info = detailed_info[detailed_info['currency_name'].isin(selected_currencies)]
+            else:
+                filtered_detailed_info = detailed_info
+            st.dataframe(filtered_detailed_info, use_container_width=True, height=400)
 
     else:
         st.error("Пожалуйста, выберите диапазон дат.")
