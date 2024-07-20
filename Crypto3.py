@@ -241,7 +241,7 @@ def main():
             else:
                 filtered_df = df
             chart = create_wallet_chart(filtered_df)
-            st.plotly_chart(chart, use_container_width=True)
+            st.plotly_chart(chart, use_container_width=True, height=500)
 
             
             st.subheader("Детальная информация")
