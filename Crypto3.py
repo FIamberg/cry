@@ -184,7 +184,7 @@ def main():
                     "sell_wallets_count": st.column_config.NumberColumn("Sell Wallets", format="%d")
                 },
                 use_container_width=True,
-                height=400
+                height=500
             )
             selected_currencies = selection["selected_rows"]["currency_name"].tolist()
 
