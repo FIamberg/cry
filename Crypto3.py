@@ -180,7 +180,23 @@ def main():
 
             st.subheader("Информация по кошелькам")
             if selected_currencies:
-                filtered_wallet_info = wallet_info[wallet_info['wallet_address'].isin(df[df['currency_name'].isin(selected_currencies)]['wallet_address'])]
+                # Фильтруем транзакции по выбранным валютам
+                filtered_df = df[df['currency_name'].isin(selected_currencies)]
+                
+                # Группируем отфильтрованные данные по wallet_address
+                filtered_wallet_info = filtered_df.groupby('wallet_address').agg({
+                    'dollar_value': lambda x: [
+                        (x * (filtered_df['wallet_type'] == 'кошелек покупки')).sum(),
+                        (x * (filtered_df['wallet_type'] == 'кошелек продажи')).sum()
+                    ]
+                }).reset_index()
+                
+                filtered_wallet_info[['buy_volume', 'sell_volume']] = pd.DataFrame(filtered_wallet_info['dollar_value'].tolist(), index=filtered_wallet_info.index)
+                filtered_wallet_info = filtered_wallet_info.drop('dollar_value', axis=1)
+                
+                # Добавляем столбец со ссылкой
+                filtered_wallet_info['wallet_link'] = filtered_wallet_info['wallet_address'].apply(make_wallet_address_link)
+                filtered_wallet_info = filtered_wallet_info.rename(columns={'wallet_link': 'Wallet Link'})
             else:
                 filtered_wallet_info = wallet_info
             
@@ -192,8 +208,8 @@ def main():
                         display_text="Link",
                         help="Click to open wallet"
                     ),
-                    "buy_volume": "Buy Volume",
-                    "sell_volume": "Sell Volume"
+                    "buy_volume": st.column_config.NumberColumn("Buy Volume"),
+                    "sell_volume": st.column_config.NumberColumn("Sell Volume")
                 },
                 hide_index=True,
                 use_container_width=True,
