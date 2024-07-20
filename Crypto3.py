@@ -30,11 +30,14 @@ def fetch_data(date_from=None, date_to=None):
             WHEN wallet_list.wallet_address = etherdrop_parser.pool_address_from THEN 'кошелек продажи'
             WHEN wallet_list.wallet_address = etherdrop_parser.receiver_address_link THEN 'кошелек покупки'
             ELSE 'пустой кошелек'
-        END AS wallet_type
+        END AS wallet_type,
+        contracts.token_contracts AS contract
     FROM wallet_list
     LEFT JOIN etherdrop_parser 
         ON wallet_list.wallet_address = etherdrop_parser.pool_address_from 
         OR wallet_list.wallet_address = etherdrop_parser.receiver_address_link
+    LEFT JOIN contracts
+        ON etherdrop_parser.currency_name = contracts.currency_name
     WHERE etherdrop_parser.id IS NOT NULL 
     """
 
@@ -50,21 +53,22 @@ def fetch_data(date_from=None, date_to=None):
 def make_wallet_address_link(wallet_address):
     return f"https://www.alphatrace.xyz/wallet/{wallet_address}"
 
+def make_contract_link(contract_address):
+    if pd.isna(contract_address) or contract_address == '':
+        return ''
+    return f"https://dexscreener.com/ethereum/{contract_address}"
+
 def create_wallet_chart(df):
     fig = go.Figure()
     
-    # Группируем данные по дате и валюте
     df_grouped = df.groupby(['datetime', 'currency_name', 'wallet_type'])['dollar_value'].sum().reset_index()
     
-    # Получаем уникальные валюты
     currencies = df_grouped['currency_name'].unique()
     
-    # Задаем фиксированную ширину столбца в миллисекундах (примерно 50 пикселей)
-    bar_width = 10 * 60 * 60 * 1000 / 2  # половина дня в миллисекундах
+    bar_width = 10 * 60 * 60 * 1000 / 2
     
-    # Задаем конкретные цвета
-    buy_color = '#4CAF50'  # зеленый
-    sell_color = '#F44336'  # красный
+    buy_color = '#4CAF50'
+    sell_color = '#F44336'
     
     for currency in currencies:
         currency_data = df_grouped[df_grouped['currency_name'] == currency]
@@ -78,7 +82,7 @@ def create_wallet_chart(df):
             name=f'Покупка ({currency})',
             marker_color='rgb(132, 214, 69)',
             hovertemplate='Валюта: %{text}<br>Дата: %{x}<br>Объем покупки: $%{y:.2f}<extra></extra>',
-            text=[currency] * len(buy_data),  # Добавляем название валюты
+            text=[currency] * len(buy_data),
             width=bar_width
         ))
         
@@ -88,7 +92,7 @@ def create_wallet_chart(df):
             name=f'Продажа ({currency})',
             marker_color='rgb(214, 69, 69)',
             hovertemplate='Валюта: %{text}<br>Дата: %{x}<br>Объем продажи: $%{y:.2f}<extra></extra>',
-            text=[currency] * len(sell_data),  # Добавляем название валюты
+            text=[currency] * len(sell_data),
             width=bar_width
         ))
     
@@ -102,7 +106,6 @@ def create_wallet_chart(df):
         height=450
     )
     
-    # Устанавливаем диапазон дат на оси X
     fig.update_xaxes(
         range=[df['datetime'].min() - pd.Timedelta(days=1), 
                df['datetime'].max() + pd.Timedelta(days=1)]
@@ -110,14 +113,22 @@ def create_wallet_chart(df):
     
     return fig
 
-def dataframe_with_selections(df):
+def dataframe_with_selections(df, column_config=None, use_container_width=False, height=None):
     df_with_selections = df.copy()
     df_with_selections.insert(0, "Select", False)
+    
+    if column_config is None:
+        column_config = {}
+    
+    column_config["Select"] = st.column_config.CheckboxColumn(required=True)
+    
     edited_df = st.data_editor(
         df_with_selections,
         hide_index=True,
-        column_config={"Select": st.column_config.CheckboxColumn(required=True)},
+        column_config=column_config,
         disabled=df.columns,
+        use_container_width=use_container_width,
+        height=height
     )
     selected_indices = list(np.where(edited_df.Select)[0])
     selected_rows = df[edited_df.Select]
@@ -126,7 +137,6 @@ def dataframe_with_selections(df):
 def main():
     st.title('Wallets')
 
-    # Выбор диапазона дат
     today = datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     week_ago = today - datetime.timedelta(days=7)
     date_range = st.sidebar.date_input("Выберите диапазон дат", [week_ago, today])
@@ -138,52 +148,50 @@ def main():
 
         df = fetch_data(date_from, date_to)
 
-        # Преобразование столбца 'datetime' в datetime
         df['datetime'] = pd.to_datetime(df['datetime'])
 
-        # Создание таблиц
-        # 1. Детальная информация
-        detailed_info = df.groupby(['currency_name', 'wallet_address', 'datetime', 'wallet_type'])['dollar_value'].sum().reset_index()
+        detailed_info = df.groupby(['currency_name', 'wallet_address', 'datetime', 'wallet_type', 'contract'])['dollar_value'].sum().reset_index()
         detailed_info = detailed_info.sort_values(['currency_name', 'wallet_address', 'datetime'], ascending=[True, True, False])
 
-        # 2. Сводная информация по валютам
-        currency_summary = df.groupby('currency_name').agg({
+        currency_summary = df.groupby(['currency_name', 'contract']).agg({
             'wallet_address': lambda x: x[df['wallet_type'] == 'кошелек покупки'].nunique(),
             'dollar_value': lambda x: (x * (df['wallet_type'] == 'кошелек покупки')).sum()
         }).rename(columns={'wallet_address': 'buy_wallets_count', 'dollar_value': 'buy_volume'})
         
-        currency_summary['sell_wallets_count'] = df[df['wallet_type'] == 'кошелек продажи'].groupby('currency_name')['wallet_address'].nunique()
-        currency_summary['sell_volume'] = df[df['wallet_type'] == 'кошелек продажи'].groupby('currency_name')['dollar_value'].sum()
+        currency_summary['sell_wallets_count'] = df[df['wallet_type'] == 'кошелек продажи'].groupby(['currency_name', 'contract'])['wallet_address'].nunique()
+        currency_summary['sell_volume'] = df[df['wallet_type'] == 'кошелек продажи'].groupby(['currency_name', 'contract'])['dollar_value'].sum()
         currency_summary = currency_summary.reset_index()
 
-        # 3. Информация по кошелькам
-        wallet_info = df.groupby('wallet_address').agg({
-            'dollar_value': lambda x: [
-                (x * (df['wallet_type'] == 'кошелек покупки')).sum(),
-                (x * (df['wallet_type'] == 'кошелек продажи')).sum()
-            ]
-        }).reset_index()
-        wallet_info[['buy_volume', 'sell_volume']] = pd.DataFrame(wallet_info['dollar_value'].tolist(), index=wallet_info.index)
-        wallet_info = wallet_info.drop('dollar_value', axis=1)
+        currency_summary['contract_link'] = currency_summary['contract'].apply(make_contract_link)
 
-        # Добавляем столбец со ссылкой
-        wallet_info['wallet_link'] = wallet_info['wallet_address'].apply(make_wallet_address_link)
-        wallet_info = wallet_info.rename(columns={'wallet_link': 'Wallet Link'})  # Переименование столбца
-
-        # Отображение таблиц
         col1, col2 = st.columns([2, 3])
 
         with col1:
-            st.subheader("Сводная информация по валютам")
-            selection = dataframe_with_selections(currency_summary)
+            st.subheader("Выбор валют")
+            selection = dataframe_with_selections(
+                currency_summary[['currency_name', 'buy_wallets_count', 'buy_volume','sell_wallets_count','sell_volume',   'contract_link']],
+                column_config={
+                    "currency_name": "Currency",
+                    "contract": "Contract Address",
+                    "contract_link": st.column_config.LinkColumn(
+                        "Contract Link",
+                        display_text="View token",
+                        help="Click to view contract on DexScreener"
+                    ),
+                    "buy_volume": st.column_config.NumberColumn("Buy Volume", format="%.2f"),
+                    "sell_volume": st.column_config.NumberColumn("Sell Volume", format="%.2f"),
+                    "buy_wallets_count": st.column_config.NumberColumn("Buy Wallets", format="%d"),
+                    "sell_wallets_count": st.column_config.NumberColumn("Sell Wallets", format="%d")
+                },
+                use_container_width=True,
+                height=400
+            )
             selected_currencies = selection["selected_rows"]["currency_name"].tolist()
 
             st.subheader("Информация по кошелькам")
             if selected_currencies:
-                # Фильтруем транзакции по выбранным валютам
                 filtered_df = df[df['currency_name'].isin(selected_currencies)]
                 
-                # Группируем отфильтрованные данные по wallet_address
                 filtered_wallet_info = filtered_df.groupby('wallet_address').agg({
                     'dollar_value': lambda x: [
                         (x * (filtered_df['wallet_type'] == 'кошелек покупки')).sum(),
@@ -194,11 +202,19 @@ def main():
                 filtered_wallet_info[['buy_volume', 'sell_volume']] = pd.DataFrame(filtered_wallet_info['dollar_value'].tolist(), index=filtered_wallet_info.index)
                 filtered_wallet_info = filtered_wallet_info.drop('dollar_value', axis=1)
                 
-                # Добавляем столбец со ссылкой
                 filtered_wallet_info['wallet_link'] = filtered_wallet_info['wallet_address'].apply(make_wallet_address_link)
                 filtered_wallet_info = filtered_wallet_info.rename(columns={'wallet_link': 'Wallet Link'})
             else:
-                filtered_wallet_info = wallet_info
+                filtered_wallet_info = df.groupby('wallet_address').agg({
+                    'dollar_value': lambda x: [
+                        (x * (df['wallet_type'] == 'кошелек покупки')).sum(),
+                        (x * (df['wallet_type'] == 'кошелек продажи')).sum()
+                    ]
+                }).reset_index()
+                filtered_wallet_info[['buy_volume', 'sell_volume']] = pd.DataFrame(filtered_wallet_info['dollar_value'].tolist(), index=filtered_wallet_info.index)
+                filtered_wallet_info = filtered_wallet_info.drop('dollar_value', axis=1)
+                filtered_wallet_info['wallet_link'] = filtered_wallet_info['wallet_address'].apply(make_wallet_address_link)
+                filtered_wallet_info = filtered_wallet_info.rename(columns={'wallet_link': 'Wallet Link'})
             
             st.dataframe(
                 filtered_wallet_info[['wallet_address', 'buy_volume', 'sell_volume', 'Wallet Link']],
@@ -208,8 +224,8 @@ def main():
                         display_text="Link",
                         help="Click to open wallet"
                     ),
-                    "buy_volume": st.column_config.NumberColumn("Buy Volume"),
-                    "sell_volume": st.column_config.NumberColumn("Sell Volume")
+                    "buy_volume": st.column_config.NumberColumn("Buy Volume", format="%.2f"),
+                    "sell_volume": st.column_config.NumberColumn("Sell Volume", format="%.2f")
                 },
                 hide_index=True,
                 use_container_width=True,
@@ -224,7 +240,6 @@ def main():
                 filtered_detailed_info = detailed_info
             st.dataframe(filtered_detailed_info, use_container_width=True, height=500)
 
-            # Создание и отображение графика
             st.subheader("График объемов покупок и продаж")
             if selected_currencies:
                 filtered_df = df[df['currency_name'].isin(selected_currencies)]
