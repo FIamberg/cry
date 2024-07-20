@@ -16,7 +16,7 @@ def connect_to_database():
     )
     return conn
 
-@st.cache_resource(ttl=5*60)
+@st.cache_resource(ttl=10*60)
 def fetch_data(date_from=None, date_to=None):
     conn = connect_to_database()
     
