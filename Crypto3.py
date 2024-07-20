@@ -3,6 +3,7 @@ import pandas as pd
 import mysql.connector
 import datetime
 import plotly.graph_objects as go
+import numpy as np
 
 st.set_page_config(layout="wide")
 
@@ -108,8 +109,19 @@ def create_wallet_chart(df):
     )
     
     return fig
-    
 
+def dataframe_with_selections(df):
+    df_with_selections = df.copy()
+    df_with_selections.insert(0, "Select", False)
+    edited_df = st.data_editor(
+        df_with_selections,
+        hide_index=True,
+        column_config={"Select": st.column_config.CheckboxColumn(required=True)},
+        disabled=df.columns,
+    )
+    selected_indices = list(np.where(edited_df.Select)[0])
+    selected_rows = df[edited_df.Select]
+    return {"selected_rows_indices": selected_indices, "selected_rows": selected_rows}
 
 def main():
     st.title('Wallets')
@@ -128,23 +140,6 @@ def main():
 
         # Преобразование столбца 'datetime' в datetime
         df['datetime'] = pd.to_datetime(df['datetime'])
-
-        # Фильтры
-        unique_usernames = df['wallet_address'].unique().tolist()
-        unique_currency_names = df['currency_name'].unique().tolist()
-        unique_wallet_types = df['wallet_type'].unique().tolist()
-
-        # Сортировка списка валют по алфавиту
-        sorted_currency_names = sorted(unique_currency_names)
-        
-        selected_currency = st.sidebar.selectbox("currency_name:", [""] + sorted_currency_names)
-        selected_username = st.sidebar.selectbox("wallet_address:", [""] + unique_usernames)
-        
-        # Применение фильтров
-        if selected_username:
-            df = df[df['wallet_address'] == selected_username]
-        if selected_currency:
-            df = df[df['currency_name'] == selected_currency]
 
         # Создание таблиц
         # 1. Детальная информация
@@ -180,16 +175,21 @@ def main():
 
         with col1:
             st.subheader("Сводная информация по валютам")
-            st.dataframe(currency_summary, use_container_width=True, height=500)
+            selection = dataframe_with_selections(currency_summary)
+            selected_currencies = selection["selected_rows"]["currency_name"].tolist()
 
             st.subheader("Информация по кошелькам")
-            # Используем st.dataframe для отображения таблицы wallet_info
+            if selected_currencies:
+                filtered_wallet_info = wallet_info[wallet_info['wallet_address'].isin(df[df['currency_name'].isin(selected_currencies)]['wallet_address'])]
+            else:
+                filtered_wallet_info = wallet_info
+            
             st.dataframe(
-                wallet_info[['wallet_address', 'buy_volume', 'sell_volume', 'Wallet Link']],
+                filtered_wallet_info[['wallet_address', 'buy_volume', 'sell_volume', 'Wallet Link']],
                 column_config={
                     "Wallet Link": st.column_config.LinkColumn(
                         label="Wallet Address",
-                        display_text = "Link",
+                        display_text="Link",
                         help="Click to open wallet"
                     ),
                     "buy_volume": "Buy Volume",
@@ -202,11 +202,19 @@ def main():
 
         with col2:
             st.subheader("Детальная информация")
-            st.dataframe(detailed_info, use_container_width=True, height=500)
+            if selected_currencies:
+                filtered_detailed_info = detailed_info[detailed_info['currency_name'].isin(selected_currencies)]
+            else:
+                filtered_detailed_info = detailed_info
+            st.dataframe(filtered_detailed_info, use_container_width=True, height=500)
 
             # Создание и отображение графика
             st.subheader("График объемов покупок и продаж")
-            chart = create_wallet_chart(df)
+            if selected_currencies:
+                filtered_df = df[df['currency_name'].isin(selected_currencies)]
+            else:
+                filtered_df = df
+            chart = create_wallet_chart(filtered_df)
             st.plotly_chart(chart, use_container_width=True)
 
     else:
