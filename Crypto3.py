@@ -194,10 +194,9 @@ def main():
         with col1:
             st.subheader("Выбор валют")
             selection = dataframe_with_selections(
-                currency_summary[['currency_name', 'buy_wallets_count', 'buy_volume','sell_wallets_count','sell_volume',   'contract_link']],
+                currency_summary[['currency_name', 'buy_wallets_count', 'buy_volume', 'sell_wallets_count', 'sell_volume', 'contract_link']],
                 column_config={
                     "currency_name": "Currency",
-                    "contract": "Contract Address",
                     "contract_link": st.column_config.LinkColumn(
                         "Contract Link",
                         display_text="View token",
