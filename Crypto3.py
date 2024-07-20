@@ -148,9 +148,6 @@ def main():
     def update_date_range(start_date, end_date):
         st.session_state.date_range = [start_date, end_date]
 
-    # Добавляем календарь для выбора дат
-    date_range = st.sidebar.date_input("Выберите диапазон дат", st.session_state.date_range)
-
     # Добавляем кнопки для быстрого выбора диапазона дат
     st.sidebar.subheader("Быстрый выбор дат")
     if st.sidebar.button("Последние 3 дня"):
@@ -162,7 +159,8 @@ def main():
     if st.sidebar.button("Все время"):
         update_date_range(datetime.datetime(2000, 1, 1), today)
 
-
+    # Добавляем календарь для выбора дат
+    date_range = st.sidebar.date_input("Выберите диапазон дат", st.session_state.date_range)
 
     # Обновляем session_state, если пользователь изменил даты через календарь
     if date_range != st.session_state.date_range:
@@ -196,9 +194,10 @@ def main():
         with col1:
             st.subheader("Выбор валют")
             selection = dataframe_with_selections(
-                currency_summary[['currency_name', 'buy_wallets_count', 'buy_volume', 'sell_wallets_count', 'sell_volume', 'contract_link']],
+                currency_summary[['currency_name', 'buy_wallets_count', 'buy_volume','sell_wallets_count','sell_volume',   'contract_link']],
                 column_config={
                     "currency_name": "Currency",
+                    "contract": "Contract Address",
                     "contract_link": st.column_config.LinkColumn(
                         "Contract Link",
                         display_text="View token",
