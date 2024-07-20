@@ -148,6 +148,9 @@ def main():
     def update_date_range(start_date, end_date):
         st.session_state.date_range = [start_date, end_date]
 
+    # Добавляем календарь для выбора дат
+    date_range = st.sidebar.date_input("Выберите диапазон дат", st.session_state.date_range)
+
     # Добавляем кнопки для быстрого выбора диапазона дат
     st.sidebar.subheader("Быстрый выбор дат")
     if st.sidebar.button("Последние 3 дня"):
@@ -159,8 +162,7 @@ def main():
     if st.sidebar.button("Все время"):
         update_date_range(datetime.datetime(2000, 1, 1), today)
 
-    # Добавляем календарь для выбора дат
-    date_range = st.sidebar.date_input("Выберите диапазон дат", st.session_state.date_range)
+
 
     # Обновляем session_state, если пользователь изменил даты через календарь
     if date_range != st.session_state.date_range:
