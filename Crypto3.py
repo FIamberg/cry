@@ -127,14 +127,14 @@ def main():
     st.title('Wallets')
 
     # Выбор диапазона дат
-    today = datetime.datetime.now()
-    month_ago = today - datetime.timedelta(days=7)
-    date_range = st.sidebar.date_input("Выберите диапазон дат", [month_ago, today])
+    today = datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    week_ago = today - datetime.timedelta(days=7)
+    date_range = st.sidebar.date_input("Выберите диапазон дат", [week_ago, today])
 
     if len(date_range) == 2:
         date_from, date_to = date_range
         date_from = pd.Timestamp(date_from)
-        date_to = pd.Timestamp(date_to)
+        date_to = pd.Timestamp(date_to) + pd.Timedelta(days=1) - pd.Timedelta(microseconds=1)
 
         df = fetch_data(date_from, date_to)
 
