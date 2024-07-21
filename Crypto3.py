@@ -145,7 +145,7 @@ def create_dexscreener_chart(currency_name, contract):
     return dexscreener_embed
 
 def main():
-    st.title('Wallets')
+    #st.title('Wallets')
 
     today = datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     week_ago = today - datetime.timedelta(days=7)
@@ -266,14 +266,14 @@ def main():
                 use_container_width=True,
                 height=400
             )
-                        # График объемов покупок и продаж
-            st.subheader("График объемов покупок и продаж")
-            if selected_currencies:
-                filtered_df = df[df['currency_name'].isin(selected_currencies)]
-            else:
-                filtered_df = df
-            chart = create_wallet_chart(filtered_df)
-            st.plotly_chart(chart, use_container_width=True, height=500)    
+                    # График объемов покупок и продаж
+        st.subheader("График объемов покупок и продаж")
+        if selected_currencies:
+            filtered_df = df[df['currency_name'].isin(selected_currencies)]
+        else:
+            filtered_df = df
+        chart = create_wallet_chart(filtered_df)
+        st.plotly_chart(chart, use_container_width=True, height=500)    
 
 
 
