@@ -12,8 +12,8 @@ st.markdown("""
         .block-container {
             padding-top: 2rem;
             padding-bottom: 0rem;
-            padding-left: 5rem;
-            padding-right: 5rem;
+            padding-left: 1.5rem;
+            padding-right: 1.5rem;
         }
     </style>
     """, unsafe_allow_html=True)
@@ -108,7 +108,7 @@ def create_wallet_chart(df):
         ))
     
     fig.update_layout(
-        title='Объемы покупок и продаж по валютам',
+        #title='Объемы покупок и продаж по валютам',
         xaxis_title='Дата',
         yaxis_title='Объем (USD)',
         barmode='group',
@@ -150,7 +150,7 @@ def create_dexscreener_chart(currency_name, contract):
     dexscreener_embed = f"""
     <iframe
         src="{dexscreener_url}?embed=1&theme=dark&trades=1&info=1"
-        style="width:100%; height:900px; border: 0; border-radius: 12px;"
+        style="width:100%; height:1000px; border: 0; border-radius: 12px;"
     ></iframe>
     """
     return dexscreener_embed
@@ -230,7 +230,7 @@ def main():
                     "sell_wallets_count": st.column_config.NumberColumn("Sell Wallets", format="%d")
                 },
                 use_container_width=True,
-                height=550
+                height=530
             )
             selected_currencies = selection["selected_rows"]["currency_name"].tolist()
 
@@ -277,20 +277,11 @@ def main():
                 use_container_width=True,
                 height=400
             )
-                    # График объемов покупок и продаж
-            st.subheader("График объемов покупок и продаж")
-            if selected_currencies:
-                filtered_df = df[df['currency_name'].isin(selected_currencies)]
-            else:
-                filtered_df = df
-            chart = create_wallet_chart(filtered_df)
-            st.plotly_chart(chart, use_container_width=True, height=500)    
-
 
 
         with col2:
             # График DexScreener
-            st.subheader("DexScreener Chart")
+            #st.subheader("DexScreener Chart")
 
             # Адрес контракта ANDY
             andy_contract = "0x68BbEd6A47194EFf1CF514B50Ea91895597fc91E"
@@ -298,7 +289,7 @@ def main():
             if not selected_currencies:
                 # Если ничего не выбрано, показываем график ANDY
                 st.markdown("### ANDY/WETH")
-                st.components.v1.html(create_dexscreener_chart('ANDY', andy_contract), height=900)
+                st.components.v1.html(create_dexscreener_chart('ANDY', andy_contract), height=1010)
             elif len(selected_currencies) == 1:
                 # Если выбран один токен, показываем его график
                 selected_currency = selected_currencies[0]
@@ -307,7 +298,7 @@ def main():
                 else:
                     selected_contract = currency_summary[currency_summary['currency_name'] == selected_currency]['contract'].iloc[0]
                 st.markdown(f"### {selected_currency}/WETH")
-                st.components.v1.html(create_dexscreener_chart(selected_currency, selected_contract), height=900)
+                st.components.v1.html(create_dexscreener_chart(selected_currency, selected_contract), height=1000)
             else:
                 # Если выбрано несколько токенов, показываем графики для всех выбранных токенов
                 for currency in selected_currencies:
@@ -316,8 +307,17 @@ def main():
                     else:
                         contract = currency_summary[currency_summary['currency_name'] == currency]['contract'].iloc[0]
                     st.markdown(f"### {currency}/WETH")
-                    st.components.v1.html(create_dexscreener_chart(currency, contract), height=900)
-
+                    st.components.v1.html(create_dexscreener_chart(currency, contract), height=1000)
+                    
+                    
+                # График объемов покупок и продаж
+        st.subheader("График объемов покупок и продаж")
+        if selected_currencies:
+            filtered_df = df[df['currency_name'].isin(selected_currencies)]
+        else:
+            filtered_df = df
+        chart = create_wallet_chart(filtered_df)
+        st.plotly_chart(chart, use_container_width=True, height=500)  
 
             
             # Детальная информация
