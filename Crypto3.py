@@ -7,6 +7,17 @@ import numpy as np
 
 st.set_page_config(layout="wide")
 
+st.markdown("""
+    <style>
+        .block-container {
+            padding-top: 2rem;
+            padding-bottom: 0rem;
+            padding-left: 5rem;
+            padding-right: 5rem;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
 def connect_to_database():
     conn = mysql.connector.connect(
         host="185.120.57.125",
