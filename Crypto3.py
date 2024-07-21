@@ -194,7 +194,7 @@ def main():
         with col1:
             st.subheader("Выбор валют")
             selection = dataframe_with_selections(
-                currency_summary[['currency_name', 'buy_wallets_count', 'buy_volume','sell_wallets_count','sell_volume',   'contract_link']],
+                currency_summary[['currency_name', 'buy_wallets_count', 'buy_volume','sell_wallets_count','sell_volume', 'contract_link']],
                 column_config={
                     "currency_name": "Currency",
                     "contract": "Contract Address",
@@ -209,7 +209,7 @@ def main():
                     "sell_wallets_count": st.column_config.NumberColumn("Sell Wallets", format="%d")
                 },
                 use_container_width=True,
-                height=450
+                height=550
             )
             selected_currencies = selection["selected_rows"]["currency_name"].tolist()
 
@@ -258,7 +258,19 @@ def main():
             )
 
         with col2:
-
+            if selected_currencies:
+                first_selected_currency = selected_currencies[0]
+                first_selected_contract = currency_summary[currency_summary['currency_name'] == first_selected_currency]['contract'].iloc[0]
+                
+                st.subheader(f"DexScreener Chart for {first_selected_currency}")
+                dexscreener_url = f"https://dexscreener.com/ethereum/{first_selected_contract}"
+                dexscreener_embed = f"""
+                <iframe
+                    src="{dexscreener_url}?embed=1&theme=light&trades=0&info=0"
+                    style="width:100%; height:550px; border: 0; border-radius: 12px;"
+                ></iframe>
+                """
+                st.components.v1.html(dexscreener_embed, height=550)
 
             st.subheader("График объемов покупок и продаж")
             if selected_currencies:
@@ -267,14 +279,13 @@ def main():
                 filtered_df = df
             chart = create_wallet_chart(filtered_df)
             st.plotly_chart(chart, use_container_width=True, height=500)
-
             
-            st.subheader("Детальная информация")
-            if selected_currencies:
-                filtered_detailed_info = detailed_info[detailed_info['currency_name'].isin(selected_currencies)]
-            else:
-                filtered_detailed_info = detailed_info
-            st.dataframe(filtered_detailed_info, use_container_width=True, height=400)
+        st.subheader("Детальная информация")
+        if selected_currencies:
+            filtered_detailed_info = detailed_info[detailed_info['currency_name'].isin(selected_currencies)]
+        else:
+            filtered_detailed_info = detailed_info
+        st.dataframe(filtered_detailed_info, use_container_width=True, height=400)
 
     else:
         st.error("Пожалуйста, выберите диапазон дат.")
