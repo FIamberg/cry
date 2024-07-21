@@ -133,6 +133,17 @@ def dataframe_with_selections(df, column_config=None, use_container_width=False,
     selected_indices = list(np.where(edited_df.Select)[0])
     selected_rows = df[edited_df.Select]
     return {"selected_rows_indices": selected_indices, "selected_rows": selected_rows}
+    
+def create_dexscreener_chart(currency_name, contract):
+    dexscreener_url = f"https://dexscreener.com/ethereum/{contract}"
+    dexscreener_embed = f"""
+    <iframe
+        src="{dexscreener_url}?embed=1&theme=dark&trades=0&info=0"
+        style="width:100%; height:550px; border: 0; border-radius: 12px;"
+    ></iframe>
+    """
+    return dexscreener_embed
+
 
 def main():
     st.title('Wallets')
@@ -258,20 +269,36 @@ def main():
             )
 
         with col2:
-            if selected_currencies:
-                first_selected_currency = selected_currencies[0]
-                first_selected_contract = currency_summary[currency_summary['currency_name'] == first_selected_currency]['contract'].iloc[0]
-                
-                st.subheader(f"DexScreener Chart for {first_selected_currency}")
-                dexscreener_url = f"https://dexscreener.com/ethereum/{first_selected_contract}"
-                dexscreener_embed = f"""
-                <iframe
-                    src="{dexscreener_url}?embed=1&theme=light&trades=0&info=0"
-                    style="width:100%; height:550px; border: 0; border-radius: 12px;"
-                ></iframe>
-                """
-                st.components.v1.html(dexscreener_embed, height=550)
+            # График DexScreener
+            st.subheader("DexScreener Charts")
 
+            # Адрес контракта ANDY
+            andy_contract = "0x68BbEd6A47194EFf1CF514B50Ea91895597fc91E"
+
+            if not selected_currencies:
+                # Если ничего не выбрано, показываем график ANDY
+                st.markdown("### ANDY/WETH")
+                st.components.v1.html(create_dexscreener_chart('ANDY', andy_contract), height=550)
+            elif len(selected_currencies) == 1:
+                # Если выбран один токен, показываем его график
+                selected_currency = selected_currencies[0]
+                if selected_currency == 'ANDY':
+                    selected_contract = andy_contract
+                else:
+                    selected_contract = currency_summary[currency_summary['currency_name'] == selected_currency]['contract'].iloc[0]
+                st.markdown(f"### {selected_currency}/WETH")
+                st.components.v1.html(create_dexscreener_chart(selected_currency, selected_contract), height=550)
+            else:
+                # Если выбрано несколько токенов, показываем графики для всех выбранных токенов
+                for currency in selected_currencies:
+                    if currency == 'ANDY':
+                        contract = andy_contract
+                    else:
+                        contract = currency_summary[currency_summary['currency_name'] == currency]['contract'].iloc[0]
+                    st.markdown(f"### {currency}/WETH")
+                    st.components.v1.html(create_dexscreener_chart(currency, contract), height=550)
+
+            # График объемов покупок и продаж
             st.subheader("График объемов покупок и продаж")
             if selected_currencies:
                 filtered_df = df[df['currency_name'].isin(selected_currencies)]
@@ -280,6 +307,7 @@ def main():
             chart = create_wallet_chart(filtered_df)
             st.plotly_chart(chart, use_container_width=True, height=500)
             
+        # Детальная информация
         st.subheader("Детальная информация")
         if selected_currencies:
             filtered_detailed_info = detailed_info[detailed_info['currency_name'].isin(selected_currencies)]
