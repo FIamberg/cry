@@ -267,13 +267,13 @@ def main():
                 height=400
             )
                     # График объемов покупок и продаж
-        st.subheader("График объемов покупок и продаж")
-        if selected_currencies:
-            filtered_df = df[df['currency_name'].isin(selected_currencies)]
-        else:
-            filtered_df = df
-        chart = create_wallet_chart(filtered_df)
-        st.plotly_chart(chart, use_container_width=True, height=500)    
+            st.subheader("График объемов покупок и продаж")
+            if selected_currencies:
+                filtered_df = df[df['currency_name'].isin(selected_currencies)]
+            else:
+                filtered_df = df
+            chart = create_wallet_chart(filtered_df)
+            st.plotly_chart(chart, use_container_width=True, height=500)    
 
 
 
