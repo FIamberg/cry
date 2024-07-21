@@ -199,7 +199,7 @@ def main():
 
         currency_summary['contract_link'] = currency_summary['contract'].apply(make_contract_link)
 
-        col1, col2 = st.columns([1, 2])
+        col1, col2 = st.columns([2, 3])
 
         with col1:
             st.subheader("Выбор валют")
