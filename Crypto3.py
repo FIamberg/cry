@@ -76,7 +76,7 @@ def create_wallet_chart(df):
     
     currencies = df_grouped['currency_name'].unique()
     
-    bar_width = 10 * 60 * 60 * 1000 / 2
+    bar_width = 5 * 60 * 60 * 1000 / 2
     
     buy_color = '#4CAF50'
     sell_color = '#F44336'
@@ -158,7 +158,7 @@ def create_dexscreener_chart(currency_name, contract):
 def main():
     #st.title('Wallets')
 
-    today = datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today = datetime.datetime.now().replace(hour=23, minute=59, second=59, microsecond=0)
     week_ago = today - datetime.timedelta(days=7)
 
     # Инициализация состояния для хранения выбранного диапазона дат
