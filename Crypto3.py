@@ -18,19 +18,21 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-def connect_to_database():
-    conn = mysql.connector.connect(
+def init_connection():
+    return mysql.connector.connect(
         host="185.120.57.125",
         user="admin",
         password="v8S7b$82j51d1",
         database="crypto"
     )
-    return conn
 
-@st.cache_resource(ttl=5*60)
-def fetch_data(date_from=None, date_to=None):
-    conn = connect_to_database()
-    
+def get_connection():
+    if 'conn' not in st.session_state:
+        st.session_state.conn = init_connection()
+    return st.session_state.conn
+
+@st.cache_data(ttl=5*60)
+def fetch_data(_conn, date_from=None, date_to=None):
     query = """
     SELECT 
         etherdrop_parser.currency_name, 
@@ -54,11 +56,10 @@ def fetch_data(date_from=None, date_to=None):
 
     if date_from and date_to:
         query += " AND etherdrop_parser.datetime BETWEEN %s AND %s"
-        df = pd.read_sql(query, conn, params=[date_from, date_to])
+        df = pd.read_sql(query, _conn, params=[date_from, date_to])
     else:
-        df = pd.read_sql(query, conn)
+        df = pd.read_sql(query, _conn)
     
-    conn.close()
     return df
 
 def make_wallet_address_link(wallet_address):
@@ -108,7 +109,6 @@ def create_wallet_chart(df):
         ))
     
     fig.update_layout(
-        #title='Объемы покупок и продаж по валютам',
         xaxis_title='Дата',
         yaxis_title='Объем (USD)',
         barmode='group',
@@ -156,20 +156,15 @@ def create_dexscreener_chart(currency_name, contract):
     return dexscreener_embed
 
 def main():
-    #st.title('Wallets')
-
     today = datetime.datetime.now().replace(hour=23, minute=59, second=59, microsecond=0)
     week_ago = today - datetime.timedelta(days=7)
 
-    # Инициализация состояния для хранения выбранного диапазона дат
     if 'date_range' not in st.session_state:
         st.session_state.date_range = [week_ago, today]
 
-    # Функция для обновления диапазона дат
     def update_date_range(start_date, end_date):
         st.session_state.date_range = [start_date, end_date]
 
-    # Добавляем кнопки для быстрого выбора диапазона дат
     st.sidebar.subheader("Быстрый выбор дат")
     if st.sidebar.button("Последние 3 дня"):
         update_date_range(today - datetime.timedelta(days=2), today)
@@ -180,10 +175,8 @@ def main():
     if st.sidebar.button("Все время"):
         update_date_range(datetime.datetime(2000, 1, 1), today)
 
-    # Добавляем календарь для выбора дат
     date_range = st.sidebar.date_input("Выберите диапазон дат", st.session_state.date_range)
 
-    # Обновляем session_state, если пользователь изменил даты через календарь
     if date_range != st.session_state.date_range:
         st.session_state.date_range = date_range
 
@@ -192,7 +185,8 @@ def main():
         date_from = pd.Timestamp(date_from)
         date_to = pd.Timestamp(date_to) + pd.Timedelta(days=1) - pd.Timedelta(microseconds=1)
 
-        df = fetch_data(date_from, date_to)
+        conn = get_connection()
+        df = fetch_data(conn, date_from, date_to)
 
         df['datetime'] = pd.to_datetime(df['datetime'])
 
@@ -278,20 +272,13 @@ def main():
                 height=400
             )
 
-
         with col2:
-            # График DexScreener
-            #st.subheader("DexScreener Chart")
-
-            # Адрес контракта ANDY
             andy_contract = "0x68BbEd6A47194EFf1CF514B50Ea91895597fc91E"
 
             if not selected_currencies:
-                # Если ничего не выбрано, показываем график ANDY
                 st.markdown("### ANDY/WETH")
                 st.components.v1.html(create_dexscreener_chart('ANDY', andy_contract), height=1010)
             elif len(selected_currencies) == 1:
-                # Если выбран один токен, показываем его график
                 selected_currency = selected_currencies[0]
                 if selected_currency == 'ANDY':
                     selected_contract = andy_contract
@@ -300,7 +287,6 @@ def main():
                 st.markdown(f"### {selected_currency}/WETH")
                 st.components.v1.html(create_dexscreener_chart(selected_currency, selected_contract), height=1000)
             else:
-                # Если выбрано несколько токенов, показываем графики для всех выбранных токенов
                 for currency in selected_currencies:
                     if currency == 'ANDY':
                         contract = andy_contract
@@ -309,8 +295,6 @@ def main():
                     st.markdown(f"### {currency}/WETH")
                     st.components.v1.html(create_dexscreener_chart(currency, contract), height=1000)
                     
-                    
-                # График объемов покупок и продаж
         st.subheader("График объемов покупок и продаж")
         if selected_currencies:
             filtered_df = df[df['currency_name'].isin(selected_currencies)]
@@ -319,8 +303,6 @@ def main():
         chart = create_wallet_chart(filtered_df)
         st.plotly_chart(chart, use_container_width=True, height=500)  
 
-            
-            # Детальная информация
         st.subheader("Детальная информация")
         if selected_currencies:
             filtered_detailed_info = detailed_info[detailed_info['currency_name'].isin(selected_currencies)]
