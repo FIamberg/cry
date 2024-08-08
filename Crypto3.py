@@ -157,16 +157,16 @@ def create_dexscreener_chart(currency_name, contract):
 
 def main():
     today = datetime.datetime.now().replace(microsecond=0)
-    yesterday = today - datetime.timedelta(days=1)
+    yesterday = today - datetime.timedelta(hours=24)  # Изменено с days=1 на hours=24
 
     if 'date_range' not in st.session_state:
-        st.session_state.date_range = [yesterday, today]
+        st.session_state.date_range = [yesterday, today]  # Инициализация с диапазоном в 24 часа
 
     def update_date_range(start_date, end_date):
         st.session_state.date_range = [start_date, end_date]
 
     st.sidebar.subheader("Быстрый выбор дат")
-    if st.sidebar.button("Последние 24 часа"):
+    if st.sidebar.button("Последние 24 часа"):  # Добавлена новая кнопка
         update_date_range(today - datetime.timedelta(hours=24), today)
     if st.sidebar.button("Последние 3 дня"):
         update_date_range(today - datetime.timedelta(days=2), today)
