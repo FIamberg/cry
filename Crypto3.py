@@ -49,8 +49,7 @@ def fetch_data(_conn, date_from=None, date_to=None):
     LEFT JOIN etherdrop_parser 
         ON wallet_list.wallet_address = etherdrop_parser.pool_address_from 
         OR wallet_list.wallet_address = etherdrop_parser.receiver_address_link
-    LEFT JOIN contracts
-        ON etherdrop_parser.currency_name = contracts.currency_name
+
     WHERE etherdrop_parser.id IS NOT NULL 
     """
 
