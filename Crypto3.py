@@ -43,14 +43,11 @@ def fetch_data(_conn, date_from=None, date_to=None):
             WHEN wallet_list.wallet_address = etherdrop_parser.pool_address_from THEN 'кошелек продажи'
             WHEN wallet_list.wallet_address = etherdrop_parser.receiver_address_link THEN 'кошелек покупки'
             ELSE 'пустой кошелек'
-        END AS wallet_type,
-        contracts.token_contracts AS contract
+        END AS wallet_type
     FROM wallet_list
     LEFT JOIN etherdrop_parser 
         ON wallet_list.wallet_address = etherdrop_parser.pool_address_from 
         OR wallet_list.wallet_address = etherdrop_parser.receiver_address_link
-    LEFT JOIN contracts
-        ON etherdrop_parser.currency_name = contracts.currency_name
     WHERE etherdrop_parser.id IS NOT NULL 
     """
 
@@ -65,11 +62,6 @@ def fetch_data(_conn, date_from=None, date_to=None):
 def make_wallet_address_link(wallet_address):
     return f"https://www.alphatrace.xyz/wallet/{wallet_address}"
 
-def make_contract_link(contract_address):
-    if pd.isna(contract_address) or contract_address == '':
-        return ''
-    return f"https://dexscreener.com/ethereum/{contract_address}"
-
 def create_wallet_chart(df):
     fig = go.Figure()
     
@@ -78,9 +70,6 @@ def create_wallet_chart(df):
     currencies = df_grouped['currency_name'].unique()
     
     bar_width = 5 * 60 * 60 * 1000 / 2
-    
-    buy_color = '#4CAF50'
-    sell_color = '#F44336'
     
     for currency in currencies:
         currency_data = df_grouped[df_grouped['currency_name'] == currency]
@@ -145,28 +134,18 @@ def dataframe_with_selections(df, column_config=None, use_container_width=False,
     selected_rows = df[edited_df.Select]
     return {"selected_rows_indices": selected_indices, "selected_rows": selected_rows}
     
-def create_dexscreener_chart(currency_name, contract):
-    dexscreener_url = f"https://dexscreener.com/ethereum/{contract}"
-    dexscreener_embed = f"""
-    <iframe
-        src="{dexscreener_url}?embed=1&theme=dark&trades=1&info=1"
-        style="width:100%; height:1000px; border: 0; border-radius: 12px;"
-    ></iframe>
-    """
-    return dexscreener_embed
-
 def main():
     today = datetime.datetime.now().replace(microsecond=0)
-    yesterday = today - datetime.timedelta(hours=24)  # Изменено с days=1 на hours=24
+    yesterday = today - datetime.timedelta(hours=24)
 
     if 'date_range' not in st.session_state:
-        st.session_state.date_range = [yesterday, today]  # Инициализация с диапазоном в 24 часа
+        st.session_state.date_range = [yesterday, today]
 
     def update_date_range(start_date, end_date):
         st.session_state.date_range = [start_date, end_date]
 
     st.sidebar.subheader("Быстрый выбор дат")
-    if st.sidebar.button("Последние 24 часа"):  # Добавлена новая кнопка
+    if st.sidebar.button("Последние 24 часа"):
         update_date_range(today - datetime.timedelta(hours=24), today)
     if st.sidebar.button("Последние 3 дня"):
         update_date_range(today - datetime.timedelta(days=2), today)
@@ -192,34 +171,26 @@ def main():
 
         df['datetime'] = pd.to_datetime(df['datetime'])
 
-        detailed_info = df.groupby(['currency_name', 'wallet_address', 'datetime', 'wallet_type', 'contract'])['dollar_value'].sum().reset_index()
+        detailed_info = df.groupby(['currency_name', 'wallet_address', 'datetime', 'wallet_type'])['dollar_value'].sum().reset_index()
         detailed_info = detailed_info.sort_values(['currency_name', 'wallet_address', 'datetime'], ascending=[True, True, False])
 
-        currency_summary = df.groupby(['currency_name', 'contract']).agg({
+        currency_summary = df.groupby(['currency_name']).agg({
             'wallet_address': lambda x: x[df['wallet_type'] == 'кошелек покупки'].nunique(),
             'dollar_value': lambda x: (x * (df['wallet_type'] == 'кошелек покупки')).sum()
         }).rename(columns={'wallet_address': 'buy_wallets_count', 'dollar_value': 'buy_volume'})
         
-        currency_summary['sell_wallets_count'] = df[df['wallet_type'] == 'кошелек продажи'].groupby(['currency_name', 'contract'])['wallet_address'].nunique()
-        currency_summary['sell_volume'] = df[df['wallet_type'] == 'кошелек продажи'].groupby(['currency_name', 'contract'])['dollar_value'].sum()
+        currency_summary['sell_wallets_count'] = df[df['wallet_type'] == 'кошелек продажи'].groupby(['currency_name'])['wallet_address'].nunique()
+        currency_summary['sell_volume'] = df[df['wallet_type'] == 'кошелек продажи'].groupby(['currency_name'])['dollar_value'].sum()
         currency_summary = currency_summary.reset_index()
-
-        currency_summary['contract_link'] = currency_summary['contract'].apply(make_contract_link)
 
         col1, col2 = st.columns([2, 3])
 
         with col1:
             st.subheader("Выбор валют")
             selection = dataframe_with_selections(
-                currency_summary[['currency_name', 'buy_wallets_count', 'buy_volume','sell_wallets_count','sell_volume', 'contract_link']],
+                currency_summary[['currency_name', 'buy_wallets_count', 'buy_volume','sell_wallets_count','sell_volume']],
                 column_config={
                     "currency_name": "Currency",
-                    "contract": "Contract Address",
-                    "contract_link": st.column_config.LinkColumn(
-                        "Contract Link",
-                        display_text="View token",
-                        help="Click to view contract on DexScreener"
-                    ),
                     "buy_volume": st.column_config.NumberColumn("Buy Volume", format="%.2f"),
                     "sell_volume": st.column_config.NumberColumn("Sell Volume", format="%.2f"),
                     "buy_wallets_count": st.column_config.NumberColumn("Buy Wallets", format="%d"),
@@ -275,42 +246,20 @@ def main():
             )
 
         with col2:
-            andy_contract = "0x68BbEd6A47194EFf1CF514B50Ea91895597fc91E"
-
-            if not selected_currencies:
-                st.markdown("### ANDY/WETH")
-                st.components.v1.html(create_dexscreener_chart('ANDY', andy_contract), height=1010)
-            elif len(selected_currencies) == 1:
-                selected_currency = selected_currencies[0]
-                if selected_currency == 'ANDY':
-                    selected_contract = andy_contract
-                else:
-                    selected_contract = currency_summary[currency_summary['currency_name'] == selected_currency]['contract'].iloc[0]
-                st.markdown(f"### {selected_currency}/WETH")
-                st.components.v1.html(create_dexscreener_chart(selected_currency, selected_contract), height=1000)
+            st.subheader("График объемов покупок и продаж")
+            if selected_currencies:
+                filtered_df = df[df['currency_name'].isin(selected_currencies)]
             else:
-                for currency in selected_currencies:
-                    if currency == 'ANDY':
-                        contract = andy_contract
-                    else:
-                        contract = currency_summary[currency_summary['currency_name'] == currency]['contract'].iloc[0]
-                    st.markdown(f"### {currency}/WETH")
-                    st.components.v1.html(create_dexscreener_chart(currency, contract), height=1000)
-                    
-        st.subheader("График объемов покупок и продаж")
-        if selected_currencies:
-            filtered_df = df[df['currency_name'].isin(selected_currencies)]
-        else:
-            filtered_df = df
-        chart = create_wallet_chart(filtered_df)
-        st.plotly_chart(chart, use_container_width=True, height=500)  
+                filtered_df = df
+            chart = create_wallet_chart(filtered_df)
+            st.plotly_chart(chart, use_container_width=True, height=500)  
 
-        st.subheader("Детальная информация")
-        if selected_currencies:
-            filtered_detailed_info = detailed_info[detailed_info['currency_name'].isin(selected_currencies)]
-        else:
-            filtered_detailed_info = detailed_info
-        st.dataframe(filtered_detailed_info, use_container_width=True, height=400)
+            st.subheader("Детальная информация")
+            if selected_currencies:
+                filtered_detailed_info = detailed_info[detailed_info['currency_name'].isin(selected_currencies)]
+            else:
+                filtered_detailed_info = detailed_info
+            st.dataframe(filtered_detailed_info, use_container_width=True, height=400)
 
     else:
         st.error("Пожалуйста, выберите диапазон дат.")
