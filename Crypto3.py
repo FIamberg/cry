@@ -49,8 +49,8 @@ def fetch_data(_conn, date_from=None, date_to=None):
         ON wallet_list.wallet_address = etherdrop_parser.pool_address_from 
         OR wallet_list.wallet_address = etherdrop_parser.receiver_address_link
     WHERE etherdrop_parser.id IS NOT NULL 
-    AND (etherdrop_parser.platfor_name_to = 'Uniswap' 
-    OR etherdrop_parser.platfor_name_from = 'Uniswap');
+    AND (etherdrop_parser.platform_name_to = 'Uniswap' 
+    OR etherdrop_parser.platform_name_from = 'Uniswap');
     """
 
     if date_from and date_to:
